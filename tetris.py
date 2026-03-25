@@ -397,7 +397,23 @@ def draw_centered_surface(screen, surface, y):
 
 
 def main():
+    estado = "menu"  # menu | jugando | game_over
+    musica_actual = None
+    def cambiar_musica(ruta, loop=True):
+        nonlocal musica_actual
+        if musica_actual != ruta:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load(ruta)
+            pygame.mixer.music.set_volume(0.5)
+
+            if loop:
+                pygame.mixer.music.play(-1)  # loop infinito
+            else:
+                pygame.mixer.music.play(0)   # solo una vez
+
+            musica_actual = ruta
     pygame.init()
+    pygame.mixer.init()
     pygame.display.set_caption("Tetris con PyGame")
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     run = True
@@ -434,10 +450,53 @@ def main():
     blocks = BlocksGroup()
     
     while run:
+        # Música según estado
+        if estado == "menu":
+            cambiar_musica("menu.mp3", True)
+
+        elif estado == "jugando":
+            cambiar_musica("juego.mp3", True)
+
+        elif estado == "game_over":
+            cambiar_musica("gameover.mp3", False)
+            
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
                 break
+            # -------- CLICK BOTONES --------
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = pygame.mouse.get_pos()
+
+                # -------- MENU --------
+                if estado == "menu":
+                    if 180 < x < 320 and 250 < y < 300:
+                        try:
+                            blocks = BlocksGroup()
+                            estado = "jugando"
+                            game_over = False
+                        except TopReached:
+                            pass
+
+                # -------- GAME OVER --------
+                elif estado == "game_over":
+
+                    # RESTART
+                    if 150 < x < 350 and 250 < y < 300:
+                        try:
+                            blocks = BlocksGroup()
+                            estado = "jugando"
+                            game_over = False
+                        except TopReached:
+                            pass
+
+                    # SALIR
+                    elif 150 < x < 350 and 320 < y < 370:
+                        run = False
+
+            #NO ejecutar controles si no está jugando
+            if estado != "jugando":
+                continue
             elif event.type == pygame.KEYUP:
                 if not paused and not game_over:
                     if event.key in MOVEMENT_KEYS:
@@ -461,21 +520,53 @@ def main():
                 elif event.type == EVENT_MOVE_CURRENT_BLOCK:
                     blocks.move_current_block()
             except TopReached:
+                estado = "game_over"
                 game_over = True
         
         # Draw background and grid.
-        screen.blit(background, (0, 0))
-        # Blocks.
-        blocks.draw(screen)
-        # Sidebar with misc. information.
+        if estado == "menu":
+            screen.fill((0, 0, 0))
+
+            titulo = font.render("TETRIS", True, (255, 255, 255))
+            boton = font.render("PLAY", True, (0, 255, 0))
+
+            screen.blit(titulo, (WINDOW_WIDTH//2 - 60, 150))
+
+            pygame.draw.rect(screen, (50, 50, 50), (180, 250, 140, 50))
+            screen.blit(boton, (210, 260))
+
+            pygame.display.flip()
+            continue
+        if estado == "jugando":
+            # Draw background and grid.
+            screen.blit(background, (0, 0))
+            blocks.draw(screen)
+        
         draw_centered_surface(screen, next_block_text, 50)
         draw_centered_surface(screen, blocks.next_block.image, 100)
         draw_centered_surface(screen, score_msg_text, 240)
         score_text = font.render(
             str(blocks.score), True, (255, 255, 255), bgcolor)
         draw_centered_surface(screen, score_text, 270)
-        if game_over:
-            draw_centered_surface(screen, game_over_text, 360)
+        if estado == "game_over":
+            screen.fill((0, 0, 0))
+
+            titulo = font.render("GAME OVER", True, (255, 0, 0))
+            restart = font.render("RESTART", True, (0, 255, 0))
+            salir = font.render("SALIR", True, (255, 255, 255))
+
+            screen.blit(titulo, (WINDOW_WIDTH//2 - 100, 150))
+
+            # Botón restart
+            pygame.draw.rect(screen, (50, 50, 50), (150, 250, 200, 50))
+            screen.blit(restart, (180, 260))
+
+            # Botón salir
+            pygame.draw.rect(screen, (50, 50, 50), (150, 320, 200, 50))
+            screen.blit(salir, (200, 330))
+
+            pygame.display.flip()
+            continue
         # Update.
         pygame.display.flip()
     
